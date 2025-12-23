@@ -1,0 +1,45 @@
+/* 
+ * MeetingMind AI - Global Styles
+ * Apple-inspired design system
+ * TODO: Phase A - Define CSS variables and base styles
+ */
+
+:root {
+  /* Colors - Apple-inspired palette */
+  --color-bg: #f5f5f7;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-text: #1d1d1f;
+  --color-text-secondary: #86868b;
+  --color-accent: #0071e3;
+  --color-success: #34c759;
+  --color-warning: #ff9f0a;
+  --color-error: #ff3b30;
+  
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', sans-serif;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 48px;
+  
+  /* Effects */
+  --blur: blur(20px);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --radius: 12px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.5;
+}

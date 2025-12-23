@@ -1,0 +1,162 @@
+/* Dashboard Page Styles */
+
+.dashboard {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #fafafa 0%, #f5f5f7 100%);
+}
+
+.dashboard-header {
+    padding: 20px 48px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.dashboard-header .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.dashboard-header .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.dashboard-header .logo-text {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.upload-btn {
+    padding: 10px 20px;
+    background: #0066cc;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.upload-btn:hover {
+    background: #0055b3;
+}
+
+.dashboard-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 48px;
+}
+
+.dashboard-main h1 {
+    font-size: 32px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 32px;
+}
+
+.loading,
+.empty-state {
+    text-align: center;
+    padding: 64px;
+    color: #6e6e73;
+}
+
+.upload-link {
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.meetings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.meeting-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    text-decoration: none;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.meeting-card:hover {
+    border-color: #0066cc;
+    box-shadow: 0 4px 16px rgba(0, 102, 204, 0.1);
+    transform: translateY(-2px);
+}
+
+.meeting-info h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+}
+
+.meeting-date {
+    font-size: 13px;
+    color: #86868b;
+}
+
+.meeting-status {
+    text-align: right;
+}
+
+.meeting-status .progress {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+    color: #0066cc;
+}
+
+.meeting-status .status-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-ready .status-label {
+    color: #34c759;
+}
+
+.status-processing .status-label {
+    color: #0066cc;
+}
+
+.status-failed .status-label {
+    color: #ff3b30;
+}
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        padding: 16px 24px;
+    }
+
+    .dashboard-main {
+        padding: 24px;
+    }
+
+    .meetings-grid {
+        grid-template-columns: 1fr;
+    }
+}

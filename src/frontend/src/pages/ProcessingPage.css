@@ -1,0 +1,260 @@
+/* Processing Page - Professional Status Display */
+
+.processing {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #fafafa 0%, #f5f5f7 100%);
+}
+
+/* Header */
+.processing-header {
+    padding: 20px 48px;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.processing-header .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.processing-header .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #1a1a1a 0%, #333 100%);
+    color: white;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.processing-header .logo-text {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1d1d1f;
+    letter-spacing: -0.02em;
+}
+
+/* Main Content */
+.processing-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+}
+
+.processing-card {
+    background: white;
+    border-radius: 20px;
+    padding: 48px;
+    width: 100%;
+    max-width: 560px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Header Content */
+.processing-header-content {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.processing-header-content h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+}
+
+.processing-header-content p {
+    font-size: 15px;
+    color: #6e6e73;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 6px;
+    background: #e5e5ea;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0066cc 0%, #5856d6 100%);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.progress-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d1d1f;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Phases */
+.phases {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.phase {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: #f5f5f7;
+    transition: all 0.2s ease;
+}
+
+.phase.active {
+    background: rgba(0, 102, 204, 0.06);
+    border: 1px solid rgba(0, 102, 204, 0.2);
+}
+
+.phase.complete {
+    background: rgba(52, 199, 89, 0.06);
+}
+
+.phase-indicator {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.phase.pending .phase-indicator {
+    background: #e5e5ea;
+    color: #86868b;
+}
+
+.phase.active .phase-indicator {
+    background: #0066cc;
+    color: white;
+}
+
+.phase.complete .phase-indicator {
+    background: #34c759;
+    color: white;
+}
+
+.phase-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.phase-content h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 2px;
+}
+
+.phase.pending .phase-content h3 {
+    color: #86868b;
+}
+
+.phase-content p {
+    font-size: 13px;
+    color: #6e6e73;
+}
+
+.phase.pending .phase-content p {
+    color: #aeaeb2;
+}
+
+/* Status Message */
+.status-message {
+    margin-top: 24px;
+    padding: 12px 16px;
+    background: #f5f5f7;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #6e6e73;
+    text-align: center;
+}
+
+/* Error State */
+.processing-error {
+    text-align: center;
+}
+
+.error-icon {
+    color: #ff3b30;
+    margin-bottom: 16px;
+}
+
+.processing-error h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+}
+
+.processing-error p {
+    font-size: 15px;
+    color: #6e6e73;
+    margin-bottom: 24px;
+}
+
+.retry-button {
+    padding: 12px 28px;
+    background: #0066cc;
+    color: white;
+    font-weight: 500;
+    font-size: 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.retry-button:hover {
+    background: #0055b3;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .processing-main {
+        padding: 24px;
+    }
+
+    .processing-card {
+        padding: 32px 24px;
+    }
+}
