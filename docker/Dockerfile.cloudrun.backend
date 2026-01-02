@@ -6,7 +6,7 @@ FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Python 3.11 + system dependencies
+# Install Python 3.11 + system dependencies + build tools for C++ packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.11 \
     python3.11-venv \
@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender-dev \
     git \
     curl \
+    build-essential \
+    cmake \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python3.11 /usr/bin/python \
     && ln -sf /usr/bin/python3.11 /usr/bin/python3

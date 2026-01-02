@@ -1,0 +1,147 @@
+﻿docker : #0 building with "desktop-linux" instance using 
+docker driver
+At line:1 char:1
++ docker build --progress=plain -f 
+docker/Dockerfile.cloudrun.backend - ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (#0 building wit. 
+   ..g docker driver:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+#1 [internal] load build definition from 
+Dockerfile.cloudrun.backend
+#1 transferring dockerfile: 1.65kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for 
+docker.io/nvidia/cuda:12.1.0-runtime-ubuntu22.04
+#2 DONE 0.4s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 436B done
+#3 DONE 0.0s
+
+#4 [1/9] FROM docker.io/nvidia/cuda:12.1.0-runtime-ubuntu22.04
+@sha256:402700b179eb764da6d60d99fe106aa16c36874f7d7fb3e122251f
+f6aea8b2f7
+#4 resolve docker.io/nvidia/cuda:12.1.0-runtime-ubuntu22.04@sh
+a256:402700b179eb764da6d60d99fe106aa16c36874f7d7fb3e122251ff6a
+ea8b2f7 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 219.39kB 0.1s done
+#5 DONE 0.1s
+
+#6 [2/9] RUN apt-get update && apt-get install -y 
+--no-install-recommends     python3.11     python3.11-venv    
+ python3.11-dev     python3-pip     ffmpeg     
+libgl1-mesa-glx     libglib2.0-0     libsm6     libxext6     
+libxrender-dev     git     curl     && rm -rf 
+/var/lib/apt/lists/*     && ln -sf /usr/bin/python3.11 
+/usr/bin/python     && ln -sf /usr/bin/python3.11 
+/usr/bin/python3
+#6 CACHED
+
+#7 [3/9] RUN python -m pip install --upgrade pip
+#7 CACHED
+
+#8 [4/9] WORKDIR /app
+#8 CACHED
+
+#9 [5/9] COPY requirements.txt .
+#9 CACHED
+
+#10 [6/9] RUN pip install --no-cache-dir -r requirements.txt
+#10 0.383 Looking in indexes: https://pypi.org/simple, 
+https://download.pytorch.org/whl/cu121
+#10 0.792 Collecting fastapi>=0.109.0 (from -r 
+requirements.txt (line 2))
+#10 0.919   Downloading 
+fastapi-0.128.0-py3-none-any.whl.metadata (30 kB)
+#10 1.059 Collecting uvicorn>=0.27.0 (from -r 
+requirements.txt (line 3))
+#10 1.077   Downloading 
+uvicorn-0.40.0-py3-none-any.whl.metadata (6.7 kB)
+#10 1.159 Collecting python-multipart>=0.0.6 (from -r 
+requirements.txt (line 4))
+#10 1.177   Downloading 
+python_multipart-0.0.21-py3-none-any.whl.metadata (1.8 kB)
+#10 1.314 Collecting rq>=1.15.0 (from -r requirements.txt 
+(line 7))
+#10 1.333   Downloading rq-2.6.1-py3-none-any.whl.metadata 
+(10 kB)
+#10 1.401 Collecting redis>=5.0.0 (from -r requirements.txt 
+(line 8))
+#10 1.419   Downloading redis-7.1.0-py3-none-any.whl.metadata 
+(12 kB)
+#10 1.560 Collecting torch>=2.0.0 (from -r requirements.txt 
+(line 12))
+#10 1.579   Downloading 
+torch-2.9.1-cp311-cp311-manylinux_2_28_x86_64.whl.metadata 
+(30 kB)
+#10 1.743 Collecting torchvision>=0.15.0 (from -r 
+requirements.txt (line 13))
+#10 1.765   Downloading torchvision-0.24.1-cp311-cp311-manylin
+ux_2_28_x86_64.whl.metadata (5.9 kB)
+#10 1.906 Collecting torchaudio>=2.0.0 (from -r 
+requirements.txt (line 14))
+#10 1.925   Downloading torchaudio-2.9.1-cp311-cp311-manylinux
+_2_28_x86_64.whl.metadata (6.9 kB)
+#10 1.996 Collecting transformers>=4.36.0 (from -r 
+requirements.txt (line 15))
+#10 2.016   Downloading 
+transformers-4.57.3-py3-none-any.whl.metadata (43 kB)
+#10 2.202 Collecting openai-whisper>=20231117 (from -r 
+requirements.txt (line 18))
+#10 2.220   Downloading openai_whisper-20250625.tar.gz (803 
+kB)
+#10 2.290      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
+803.2/803.2 kB 19.6 MB/s  0:00:00
+#10 2.314   Installing build dependencies: started
+#10 3.225   Installing build dependencies: finished with 
+status 'done'
+#10 3.226   Getting requirements to build wheel: started
+#10 3.439   Getting requirements to build wheel: finished 
+with status 'done'
+#10 3.440   Preparing metadata (pyproject.toml): started
+#10 3.535   Preparing metadata (pyproject.toml): finished 
+with status 'done'
+#10 3.643 Collecting pyannote.audio>=3.1.0 (from -r 
+requirements.txt (line 19))
+#10 3.672   Downloading 
+pyannote_audio-4.0.3-py3-none-any.whl.metadata (13 kB)
+#10 3.808 Collecting opencv-python>=4.9.0 (from -r 
+requirements.txt (line 22))
+#10 3.828   Downloading opencv_python-4.12.0.88-cp37-abi3-many
+linux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (19 kB)
+#10 4.231 Collecting Pillow>=10.0.0 (from -r requirements.txt 
+(line 23))
+#10 4.249   Downloading pillow-12.1.0-cp311-cp311-manylinux_2_
+27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+#10 4.364 Collecting imageio>=2.34.0 (from -r 
+requirements.txt (line 24))
+#10 4.382   Downloading 
+imageio-2.37.2-py3-none-any.whl.metadata (9.7 kB)
+#10 4.495 Collecting imageio-ffmpeg>=0.5.1 (from -r 
+requirements.txt (line 25))
+#10 4.513   Downloading imageio_ffmpeg-0.6.0-py3-none-manylinu
+x2014_x86_64.whl.metadata (1.5 kB)
+#10 4.640 Collecting scikit-image>=0.22.0 (from -r 
+requirements.txt (line 26))
+#10 4.659   Downloading scikit_image-0.26.0-cp311-cp311-manyli
+nux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (15 kB)
+#10 4.747 Collecting easyocr>=1.7.0 (from -r requirements.txt 
+(line 27))
+#10 4.765   Downloading 
+easyocr-1.7.2-py3-none-any.whl.metadata (10 kB)
+#10 4.903 Collecting ultralytics>=8.1.0 (from -r 
+requirements.txt (line 30))
+#10 4.924   Downloading 
+ultralytics-8.3.246-py3-none-any.whl.metadata (37 kB)
+#10 5.058 Collecting insightface>=0.7.3 (from -r 
+requirements.txt (line 31))
+#10 5.076   Downloading insightface-0.7.3.tar.gz (439 kB)
+#10 5.118   Installing build dependencies: started
