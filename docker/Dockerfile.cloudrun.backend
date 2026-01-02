@@ -1,0 +1,61 @@
+# Cloud Run Backend Dockerfile - GPU-enabled with CUDA
+# Uses NVIDIA CUDA runtime for GPU acceleration on Cloud Run L4
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python 3.11 + system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    python3-pip \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python \
+    && ln -sf /usr/bin/python3.11 /usr/bin/python3
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies (CUDA-enabled torch will be installed)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+
+# Copy ML model files
+COPY yolov11m-face.pt yolov8n-face.pt ./
+
+# Create data directory
+RUN mkdir -p src/data/meetings
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+ENV GCP_PROJECT=meetingmind-ai-483117
+ENV GCP_LOCATION=us-central1
+
+# Expose Cloud Run port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run with uvicorn
+CMD ["python", "-m", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8080"]

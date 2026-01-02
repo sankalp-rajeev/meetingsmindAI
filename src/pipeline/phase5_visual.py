@@ -563,16 +563,17 @@ class TranscriptTriggerMatcher:
 
 
 # ----------------------------
-# VLM Analyzer (Qwen2.5-VL via Ollama)
+# VLM Analyzer (Gemini Vision via Vertex AI)
 # ----------------------------
 class VLMAnalyzer:
-    """Analyze frames using Qwen2.5-VL through Ollama."""
+    """Analyze frames using Gemini Vision through Vertex AI."""
     
-    def __init__(self, model: str = "qwen2.5vl:latest", timeout: int = 120):
+    def __init__(self, model: str = "gemini-1.5-flash-002", timeout: int = 120):
         self.model = model
         self.timeout = timeout
-        ollama_host = os.getenv("OLLAMA_HOST", "localhost:11434")
-        self.base_url = f"http://{ollama_host}/api/chat"
+        # Import here to avoid circular imports
+        from src.app.gemini_client import GeminiClient
+        self.client = GeminiClient(model_name=model, temperature=0.1)
     
     def analyze_frame(self, frame: np.ndarray, context: str = "") -> dict:
         """
@@ -625,27 +626,13 @@ Respond in JSON only, no markdown:"""
             prompt = f"Context from transcript: '{context}'\n\n{prompt}"
         
         try:
-            payload = {
-                "model": self.model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt,
-                        "images": [b64_image]
-                    }
-                ],
-                "stream": False,
-                "options": {"temperature": 0.1}
-            }
-            
-            response = requests.post(self.base_url, json=payload, timeout=self.timeout)
-            response.raise_for_status()
-            
-            result = response.json()
-            content = result.get("message", {}).get("content", "")
+            # Use Gemini Vision API
+            import base64
+            image_bytes = base64.b64decode(b64_image)
+            response_text = self.client.analyze_image(image_bytes, prompt, mime_type="image/jpeg")
             
             # Parse JSON from response
-            return self._parse_vlm_response(content)
+            return self._parse_vlm_response(response_text)
             
         except Exception as e:
             print(f"  VLM error: {e}")

@@ -17,12 +17,21 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional
 
-app = FastAPI(title="MeetingsAI API", version="0.1.0")
+app = FastAPI(title="MeetingsAI API", version="1.0.0")
 
-# CORS for frontend
+# CORS - Allow frontend origins (update for Cloud Run)
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    os.getenv("FRONTEND_URL", ""),  # Cloud Run frontend URL
+]
+# Filter out empty strings
+ALLOWED_ORIGINS = [o for o in ALLOWED_ORIGINS if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.run\.app",  # Allow all Cloud Run URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,7 +87,12 @@ def create_tables():
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    """Health check endpoint for Cloud Run."""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "service": "meetingmind-backend"
+    }
 
 
 @app.get("/db-check")
