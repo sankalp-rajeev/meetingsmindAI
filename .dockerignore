@@ -1,0 +1,46 @@
+# Docker ignore file
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv
+env
+.venv
+.env
+
+# Node
+node_modules
+.npm
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+test_apis
+tests
+*.test.py
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Data (mounted as volume)
+src/data/meetings/*
+
+# Docs
+*.md
+!README.md
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db

@@ -9,6 +9,8 @@ from src.pipeline.phase1 import run_phase1
 from src.pipeline.phase2 import run_phase2
 from src.pipeline.phase3 import run_phase3
 from src.pipeline.phase4 import run_phase4
+from src.pipeline.phase5_visual import run_phase5
+
 
 
 from src.app.db import engine
@@ -108,18 +110,25 @@ def process_meeting(meeting_id: str):
 
         update_db(meeting_id, message=f"Phase 1 & 2 OK")
 
-        update_db(meeting_id, phase="PHASE3", progress=0.6, message="Phase 1 complete (real). Phase 2 complete (real).")
+        # Run Phase 5 (Visual Intelligence) - Analyzes slides, charts, whiteboards
+        update_db(meeting_id, phase="PHASE5", progress=0.6, message="Running Phase 5 (Visual Intelligence)...")
+        try:
+            run_phase5(meeting_root, vlm_model="qwen2.5vl:latest", max_keyframes=50)
+            update_db(meeting_id, progress=0.75, message="Phase 5 complete.")
+        except Exception as e:
+            print(f"Phase 5 failed (non-blocking): {e}")
+            update_db(meeting_id, progress=0.75, message=f"Phase 5 skipped: {str(e)[:50]}")
 
-
-        # Run Phase 3 (Matching)
+        # Run Phase 3 (Matching) - Merges name suggestions with speaker-face mapping
+        update_db(meeting_id, phase="PHASE3", progress=0.78, message="Running Phase 3 (Speaker-Face Matching)...")
         run_phase3(meeting_root)
-        update_db(meeting_id, phase="PHASE3", progress=0.8, message="Phase 3 complete (Matching).")
-        update_db(meeting_id, phase="PHASE4", progress=0.8)
+        update_db(meeting_id, phase="PHASE3", progress=0.85, message="Phase 3 complete (Matching).")
 
+        # Run Phase 4 (Summarization)
+        update_db(meeting_id, phase="PHASE4", progress=0.9, message="Running Phase 4 (Summarization)...")
         meeting_root = Path(settings.DATA_ROOT) / meeting_id
         out_path = run_phase4(meeting_root, model="qwen2.5:14b")
         update_db(meeting_id, message=f"Phase 4 complete: {out_path.name}")
-
 
         update_db(
             meeting_id,

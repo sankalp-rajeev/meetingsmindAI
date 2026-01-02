@@ -242,9 +242,9 @@ def process_video(video_path, output_dir, sampling_fps=2):
     # Load models
     print("\n[1/7] Loading models...")
     
-    # Face detector (YOLOv8)
-    print("  - Loading YOLOv8 face detector...")
-    face_detector = YOLO('yolov8n-face.pt')
+    # Face detector (YOLOv11 - Medium variant for better accuracy)
+    print("  - Loading YOLOv11m face detector...")
+    face_detector = YOLO('yolov11m-face.pt')
     
     # Face recognition (InsightFace)
     print("  - Loading InsightFace...")

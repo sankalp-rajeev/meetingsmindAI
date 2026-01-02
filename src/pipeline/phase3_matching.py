@@ -20,6 +20,30 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 
+
+
+def load_name_suggestions(meeting_root: Path) -> Dict[str, dict]:
+    """
+    Load VLM name suggestions from Phase 5.5.
+    Returns: {face_track_id: {suggested_name, confidence, votes, status}}
+    """
+    suggestions_path = meeting_root / "phase5" / "name_suggestions.json"
+    
+    if not suggestions_path.exists():
+        return {}
+    
+    try:
+        data = load_json(suggestions_path)
+        # Build lookup by face_track_id
+        return {
+            s["face_track_id"]: s
+            for s in data.get("suggestions", [])
+        }
+    except Exception as e:
+        print(f"Failed to load name suggestions: {e}")
+        return {}
+
+
 # ----------------------------
 # Utilities
 # ----------------------------
@@ -331,8 +355,74 @@ def run_matching(
     save_json(suggestions, out_dir / "speaker_face_suggestions.json")
     print(f"Saved prelabeled_transcript.json and speaker_face_suggestions.json to {out_dir}")
 
-    # Optional: if speaker_face_map.json exists, also export final labeled transcript
+    # NEW: Extract speaker names from introductions using AI
+    speaker_face_map_path_actual = out_dir / "speaker_face_map.json"
+    existing_map = {}
     if speaker_face_map_path and speaker_face_map_path.exists():
+        existing_map = load_json(speaker_face_map_path)
+    elif speaker_face_map_path_actual.exists():
+        existing_map = load_json(speaker_face_map_path_actual)
+    
+    # Extract names if not already in map
+    existing_names = {m.get("speaker_id"): m.get("name") for m in existing_map.get("mappings", [])}
+    missing_speakers = [s for s in suggestions.get("suggestions", []) if s.get("speaker_id") not in existing_names or not existing_names.get(s.get("speaker_id"))]
+    
+    if missing_speakers:
+        try:
+            # extracted_names = extract_speaker_names(transcript.get("segments", []))
+            extracted_names = {} # Disable automation
+            
+            # Load VLM name suggestions from Phase 5.5
+            meeting_root = out_dir.parent
+            name_suggestions = load_name_suggestions(meeting_root)
+            print(f"Loaded {len(name_suggestions)} VLM name suggestions")
+            
+            # Build updated mappings
+            mappings = list(existing_map.get("mappings", []))
+            existing_speaker_ids = {m.get("speaker_id") for m in mappings}
+            
+            for sug in suggestions.get("suggestions", []):
+                spk = sug.get("speaker_id")
+                tid = sug.get("suggested_face_track_id")
+                # name = extracted_names.get(spk)
+                name = None
+                
+                # Check if we have a VLM suggestion for this face track
+                vlm_suggestion = name_suggestions.get(tid) if tid else None
+                
+                if spk and spk not in existing_speaker_ids:
+                    mapping = {
+                        "speaker_id": spk,
+                        "name": name or spk,  # Default to speaker ID
+                        "face_track_id": tid,
+                        "auto_extracted": False
+                    }
+                    
+                    # Add VLM suggestion if available
+                    if vlm_suggestion:
+                        mapping["suggested_name"] = vlm_suggestion.get("suggested_name")
+                        mapping["suggestion_confidence"] = vlm_suggestion.get("confidence")
+                        mapping["suggestion_votes"] = vlm_suggestion.get("votes")
+                        mapping["status"] = vlm_suggestion.get("status", "needs_review")
+                        print(f"  {spk} → {tid}: Suggested '{mapping['suggested_name']}' (confidence: {mapping['suggestion_confidence']})")
+                    else:
+                        mapping["status"] = "manual_only"
+                    
+                    mappings.append(mapping)
+            
+            if mappings:
+                updated_map = {"mappings": mappings}
+                save_json(updated_map, speaker_face_map_path_actual)
+                print(f"Auto-created speaker_face_map.json with {len(mappings)} entries")
+                
+                # Apply labels to create labeled transcript
+                labeled = apply_labels(prelabeled, updated_map, faces)
+                save_json(labeled, out_dir / "labeled_transcript.json")
+                print(f"Created labeled_transcript.json with extracted names")
+        except Exception as e:
+            print(f"Failed to create speaker mappings: {e}")
+
+    elif speaker_face_map_path and speaker_face_map_path.exists():
         print(f"Applying existing map: {speaker_face_map_path}")
         speaker_face_map = load_json(speaker_face_map_path)
         labeled = apply_labels(prelabeled, speaker_face_map, faces)

@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    DATABASE_URL: str
+    DATABASE_URL: str = "sqlite:///./src/data/meetings.db"
     DATA_ROOT: str = "src/data/meetings"
 
 settings = Settings()

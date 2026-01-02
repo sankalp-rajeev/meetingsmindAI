@@ -10,6 +10,37 @@ import numpy as np
 import subprocess
 import tempfile
 
+# Fix for PyTorch 2.6+ weights_only default change
+# This allows pyannote.audio models to load correctly
+try:
+    import torch.torch_version
+    from pyannote.audio.core.task import Specifications
+    from pyannote.core import SlidingWindow
+    
+    # Add all required classes to safe globals
+    safe_classes = [
+        torch.torch_version.TorchVersion,
+        Specifications,
+        SlidingWindow,
+    ]
+    
+    # Try to add more pyannote classes if they exist
+    try:
+        from pyannote.audio.core.task import Problem, Resolution
+        safe_classes.extend([Problem, Resolution])
+    except ImportError:
+        pass
+    
+    torch.serialization.add_safe_globals(safe_classes)
+except (AttributeError, ImportError) as e:
+    # Fallback: monkey-patch torch.load to use weights_only=False
+    _original_torch_load = torch.load
+    def _patched_torch_load(*args, **kwargs):
+        if 'weights_only' not in kwargs:
+            kwargs['weights_only'] = False
+        return _original_torch_load(*args, **kwargs)
+    torch.load = _patched_torch_load
+
 # Load environment variables
 load_dotenv()
 

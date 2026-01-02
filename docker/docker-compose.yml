@@ -1,0 +1,70 @@
+
+services:
+  # Frontend - React served by Nginx
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Backend - FastAPI
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../src/data:/app/src/data  # Persist meeting data
+      - model-cache:/root/.cache   # Cache ML models
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Access Ollama on host
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # Worker - RQ for background processing
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    command: python -m src.worker.worker
+    volumes:
+      - ../src/data:/app/src/data
+      - model-cache:/root/.cache
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_HOST=host.docker.internal:11434
+      - HUGGINGFACE_TOKEN=${HUGGINGFACE_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Redis - Task queue
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  model-cache:

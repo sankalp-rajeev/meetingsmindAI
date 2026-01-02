@@ -34,6 +34,48 @@ data_root_path.mkdir(parents=True, exist_ok=True)
 app.mount("/data/meetings", StaticFiles(directory=str(data_root_path)), name="meetings")
 
 
+@app.on_event("startup")
+def create_tables():
+    """Create database tables on startup if they don't exist."""
+    with engine.begin() as conn:
+        # Detect database type and use appropriate syntax
+        dialect = engine.dialect.name
+        
+        if dialect == "postgresql":
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS meetings (
+                    id SERIAL PRIMARY KEY,
+                    meeting_id TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    status TEXT DEFAULT 'PROCESSING',
+                    phase TEXT DEFAULT 'PHASE1',
+                    progress REAL DEFAULT 0.0,
+                    message TEXT,
+                    artifact_root TEXT,
+                    error_phase TEXT,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+        else:
+            # SQLite
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS meetings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    meeting_id TEXT UNIQUE NOT NULL,
+                    title TEXT,
+                    status TEXT DEFAULT 'PROCESSING',
+                    phase TEXT DEFAULT 'PHASE1',
+                    progress REAL DEFAULT 0.0,
+                    message TEXT,
+                    artifact_root TEXT,
+                    error_phase TEXT,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+    print("✓ Database tables initialized")
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -124,7 +166,7 @@ def meeting_status(meeting_id: UUID):
                 FROM meetings
                 WHERE meeting_id = :meeting_id
             """),
-            {"meeting_id": meeting_id}
+            {"meeting_id": str(meeting_id)}
         ).mappings().first()
 
     if not row:
@@ -146,12 +188,17 @@ def get_manifest(meeting_id: UUID):
 @app.get("/api/meetings/{meeting_id}/transcript")
 def get_transcript(meeting_id: UUID):
     root = Path(settings.DATA_ROOT) / str(meeting_id)
-    path = root / "phase1" / "transcript.json"
     
-    if not path.exists():
+    # Prefer labeled transcript (with speaker names) if available
+    labeled_path = root / "phase3" / "labeled_transcript.json"
+    fallback_path = root / "phase1" / "transcript.json"
+    
+    if labeled_path.exists():
+        return json.loads(labeled_path.read_text(encoding="utf-8"))
+    elif fallback_path.exists():
+        return json.loads(fallback_path.read_text(encoding="utf-8"))
+    else:
         raise HTTPException(status_code=404, detail="Transcript not found")
-    
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 @app.get("/api/meetings/{meeting_id}/notes")
@@ -191,7 +238,26 @@ def get_speaker_labels(meeting_id: UUID):
         return {"labels": {}, "speaker_to_face": {}}
     
     data = json.loads(map_path.read_text(encoding="utf-8"))
-    return data
+    
+    # Check if data has old format (labels dict) or new format (mappings array)
+    if "mappings" in data:
+        # Convert mappings array to labels dict and speaker_to_face dict
+        labels = {}
+        speaker_to_face = {}
+        for mapping in data.get("mappings", []):
+            speaker_id = mapping.get("speaker_id", "")
+            name = mapping.get("name", speaker_id)
+            face_track_id = mapping.get("face_track_id")
+            
+            if speaker_id:
+                labels[speaker_id] = name
+                if face_track_id:
+                    speaker_to_face[speaker_id] = face_track_id
+        
+        return {"labels": labels, "speaker_to_face": speaker_to_face}
+    else:
+        # Old format already has labels dict
+        return {"labels": data.get("labels", {}), "speaker_to_face": data.get("speaker_to_face", {})}
 
 
 @app.patch("/api/meetings/{meeting_id}/speaker-labels")
@@ -281,3 +347,60 @@ def get_speaker_suggestions(meeting_id: UUID):
     }
 
 
+@app.get("/api/meetings/{meeting_id}/visual-insights")
+def get_visual_insights(meeting_id: UUID):
+    """Get visual insights from Phase 5 analysis"""
+    root = Path(settings.DATA_ROOT) / str(meeting_id)
+    insights_path = root / "phase5" / "visual_insights.json"
+    
+    if not insights_path.exists():
+        return {"keyframes_analyzed": 0, "insights": [], "summary": "No visual analysis available"}
+    
+    data = json.loads(insights_path.read_text(encoding="utf-8"))
+    return data
+
+
+# ============================================================
+# RAG Q&A Endpoints
+# ============================================================
+
+class QuestionRequest(BaseModel):
+    question: str
+
+
+class ChatClearResponse(BaseModel):
+    success: bool
+    message: str
+
+
+@app.post("/api/meetings/{meeting_id}/ask")
+def ask_meeting_question(meeting_id: UUID, request: QuestionRequest):
+    """Ask a question about the meeting content using RAG."""
+    from src.app.rag import get_meeting_rag
+    
+    # Verify meeting exists
+    root = Path(settings.DATA_ROOT) / str(meeting_id)
+    if not root.exists():
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    
+    try:
+        rag = get_meeting_rag(str(meeting_id), settings.DATA_ROOT)
+        result = rag.ask(request.question)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"RAG error: {str(e)}")
+
+
+@app.delete("/api/meetings/{meeting_id}/chat")
+def clear_chat_history(meeting_id: UUID):
+    """Clear the conversation memory for a meeting."""
+    from src.app.rag import get_meeting_rag, clear_rag_cache
+    
+    try:
+        rag = get_meeting_rag(str(meeting_id), settings.DATA_ROOT)
+        rag.clear_memory()
+        return ChatClearResponse(success=True, message="Chat history cleared")
+    except Exception as e:
+        return ChatClearResponse(success=False, message=str(e))

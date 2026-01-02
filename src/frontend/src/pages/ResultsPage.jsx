@@ -38,6 +38,7 @@ function ResultsPage() {
     const [transcript, setTranscript] = useState(null)
     const [notes, setNotes] = useState(null)
     const [faces, setFaces] = useState(null)
+    const [visualInsights, setVisualInsights] = useState(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
@@ -52,6 +53,14 @@ function ResultsPage() {
     const [savingLabel, setSavingLabel] = useState(false)
     const [showToast, setShowToast] = useState(false)
     const [toastMessage, setToastMessage] = useState('')
+    const [showAllVisuals, setShowAllVisuals] = useState(false)
+
+    // Chat/RAG state
+    const [chatMessages, setChatMessages] = useState([])
+    const [chatInput, setChatInput] = useState('')
+    const [chatLoading, setChatLoading] = useState(false)
+    const [showChat, setShowChat] = useState(false)
+    const chatEndRef = useRef(null)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -102,8 +111,29 @@ function ResultsPage() {
                     })
                     setSpeakerLabels(labels)
                 }
-                if (notesRes.ok) setNotes(await notesRes.json())
+                if (notesRes.ok) {
+                    const notesData = await notesRes.json()
+                    // Normalize keys to lowercase (LLM may output Title vs title)
+                    const normalizedNotes = {}
+                    Object.entries(notesData).forEach(([key, value]) => {
+                        normalizedNotes[key.toLowerCase()] = value
+                    })
+                    setNotes(normalizedNotes)
+                }
                 if (facesRes.ok) setFaces(await facesRes.json())
+
+                // Fetch visual insights (Phase 5)
+                try {
+                    const visualRes = await fetch(`/api/meetings/${id}/visual-insights`)
+                    if (visualRes.ok) {
+                        const visualData = await visualRes.json()
+                        if (visualData.keyframes_analyzed > 0) {
+                            setVisualInsights(visualData)
+                        }
+                    }
+                } catch (e) {
+                    console.log('No visual insights available')
+                }
 
                 setLoading(false)
             } catch (err) {
@@ -320,6 +350,66 @@ function ResultsPage() {
         URL.revokeObjectURL(url)
     }
 
+    // Chat/RAG functions
+    const sendMessage = async (e) => {
+        e.preventDefault()
+        if (!chatInput.trim() || chatLoading) return
+
+        const userMessage = chatInput.trim()
+        setChatInput('')
+        setChatMessages(prev => [...prev, { role: 'user', content: userMessage }])
+        setChatLoading(true)
+
+        try {
+            const response = await fetch(`/api/meetings/${id}/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: userMessage })
+            })
+
+            if (!response.ok) throw new Error('Failed to get response')
+
+            const data = await response.json()
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: data.answer,
+                sources: data.sources || []
+            }])
+        } catch (err) {
+            setChatMessages(prev => [...prev, {
+                role: 'assistant',
+                content: 'Sorry, I encountered an error. Please try again.',
+                error: true
+            }])
+        } finally {
+            setChatLoading(false)
+            // Scroll to bottom
+            setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+        }
+    }
+
+    const clearChat = async () => {
+        try {
+            await fetch(`/api/meetings/${id}/chat`, { method: 'DELETE' })
+        } catch (e) { /* ignore */ }
+        setChatMessages([])
+    }
+
+    const formatTimestamp = (timestamp) => {
+        // Handle string timestamps (e.g., "02:08.76" from RAG sources)
+        if (typeof timestamp === 'string') {
+            // If it's already formatted like "MM:SS.ss", extract just MM:SS
+            const match = timestamp.match(/^(\d+):(\d+)/)
+            if (match) return `${match[1]}:${match[2].padStart(2, '0')}`
+            return timestamp
+        }
+        // Handle numeric seconds
+        if (typeof timestamp !== 'number' || isNaN(timestamp)) return '0:00'
+        const mins = Math.floor(timestamp / 60)
+        const secs = Math.floor(timestamp % 60)
+        return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
     if (loading) {
         return (
             <div className="results loading-state">
@@ -494,14 +584,127 @@ function ResultsPage() {
 
                     {notes?.title && (
                         <div className="summary-section">
-                            <h3>{notes.title}</h3>
+                            <h3>{typeof notes.title === 'string' ? notes.title : 'Meeting Notes'}</h3>
                         </div>
                     )}
 
                     {notes?.summary && (
                         <div className="summary-section">
                             <h4>Summary</h4>
-                            <p>{notes.summary}</p>
+                            {typeof notes.summary === 'string' ? (
+                                <p>{notes.summary}</p>
+                            ) : (
+                                <>
+                                    {/* Overview */}
+                                    {notes.summary.overview && (
+                                        <div className="summary-subsection overview-section">
+                                            <p className="overview-text">{notes.summary.overview}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Visual Content Summary */}
+                                    {notes.summary.visual_content_summary && (
+                                        <div className="summary-subsection">
+                                            <h5>🖥️ Presentations & Visual Content</h5>
+                                            <p>{notes.summary.visual_content_summary}</p>
+                                        </div>
+                                    )}
+
+                                    {/* Discussion Topics */}
+                                    {notes.summary.discussion_topics && notes.summary.discussion_topics.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>📋 Discussion Topics</h5>
+                                            <ul>
+                                                {notes.summary.discussion_topics.map((topic, i) => (
+                                                    <li key={i}>{topic}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Key Points */}
+                                    {notes.summary.key_points && notes.summary.key_points.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>💡 Key Points</h5>
+                                            <ul>
+                                                {notes.summary.key_points.map((point, i) => (
+                                                    <li key={i}>{typeof point === 'object' ? point.point || JSON.stringify(point) : point}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Decisions Made */}
+                                    {notes.summary.decisions_made && notes.summary.decisions_made.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>✅ Decisions Made</h5>
+                                            <ul>
+                                                {notes.summary.decisions_made.map((decision, i) => (
+                                                    <li key={i}>{typeof decision === 'object' ? decision.decision || JSON.stringify(decision) : decision}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Action Items from summary */}
+                                    {notes.summary.action_items && notes.summary.action_items.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>📝 Action Items</h5>
+                                            <ul>
+                                                {notes.summary.action_items.map((item, i) => (
+                                                    <li key={i}>
+                                                        {typeof item === 'object'
+                                                            ? `${item.owner ? `[${item.owner}] ` : ''}${item.item || item.action || JSON.stringify(item)}`
+                                                            : item}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Risks Identified */}
+                                    {notes.summary.risks_identified && notes.summary.risks_identified.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>⚠️ Risks Identified</h5>
+                                            <ul className="risks-list">
+                                                {notes.summary.risks_identified.map((risk, i) => (
+                                                    <li key={i}>
+                                                        {typeof risk === 'object'
+                                                            ? risk.risk || risk.description || JSON.stringify(risk)
+                                                            : risk}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Open Questions */}
+                                    {notes.summary.open_questions && notes.summary.open_questions.length > 0 && (
+                                        <div className="summary-subsection">
+                                            <h5>❓ Open Questions</h5>
+                                            <ul>
+                                                {notes.summary.open_questions.map((question, i) => (
+                                                    <li key={i}>
+                                                        {typeof question === 'object'
+                                                            ? question.question || JSON.stringify(question)
+                                                            : question}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {/* Next Steps */}
+                                    {notes.summary.next_steps && (
+                                        <div className="summary-subsection next-steps-section">
+                                            <h5>➡️ Next Steps</h5>
+                                            <p>{notes.summary.next_steps}</p>
+                                        </div>
+                                    )}
+                                    {/* Fallback for keypoints format */}
+                                    {(notes.summary.keypoints || notes.summary.KeyPoints) && (
+                                        <ul>
+                                            {(notes.summary.keypoints || notes.summary.KeyPoints).map((point, i) => (
+                                                <li key={i}>{typeof point === 'string' ? point : JSON.stringify(point)}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -510,7 +713,11 @@ function ResultsPage() {
                             <h4>Key Decisions</h4>
                             <ul>
                                 {notes.decisions.map((decision, i) => (
-                                    <li key={i}>{decision}</li>
+                                    <li key={i}>
+                                        {typeof decision === 'object'
+                                            ? decision.decision || decision.item || decision.text || JSON.stringify(decision)
+                                            : decision}
+                                    </li>
                                 ))}
                             </ul>
                         </div>
@@ -522,8 +729,17 @@ function ResultsPage() {
                             <div className="action-items">
                                 {notes.action_items.map((item, i) => (
                                     <div key={i} className="action-item">
-                                        <span className="owner">{item.owner}</span>
-                                        <p>{item.item}</p>
+                                        <span className="owner">
+                                            {typeof item === 'object' ? item.owner || 'Unassigned' : ''}
+                                        </span>
+                                        <p>
+                                            {typeof item === 'object'
+                                                ? item.item || item.action || item.text || JSON.stringify(item)
+                                                : item}
+                                        </p>
+                                        {typeof item === 'object' && item.due_date && (
+                                            <span className="due-date">Due: {item.due_date}</span>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -535,11 +751,73 @@ function ResultsPage() {
                             <h4>Risks</h4>
                             <ul className="risks-list">
                                 {notes.risks.map((risk, i) => (
-                                    <li key={i}>{risk}</li>
+                                    <li key={i}>
+                                        {typeof risk === 'object'
+                                            ? risk.risk || risk.description || JSON.stringify(risk)
+                                            : risk}
+                                    </li>
                                 ))}
                             </ul>
                         </div>
                     )}
+
+                    {/* Visual Insights from Phase 5 */}
+                    {visualInsights && visualInsights.insights && visualInsights.insights.length > 0 && (() => {
+                        // Filter out camera_only and duplicate frames (skipped by content filter)
+                        const contentFrames = visualInsights.insights.filter(
+                            insight => !['camera_only', 'duplicate', 'unknown'].includes(insight.content_type) && !insight.skipped_vlm
+                        );
+                        const skippedCount = visualInsights.insights.length - contentFrames.length;
+
+                        return contentFrames.length > 0 ? (
+                            <div className="summary-section visual-insights-section">
+                                <div className="visual-insights-header">
+                                    <h4>📊 Visual Content ({contentFrames.length} slides/charts)</h4>
+                                    {skippedCount > 0 && (
+                                        <span className="skipped-count" title="Camera-only frames were filtered out">
+                                            {skippedCount} camera frames filtered
+                                        </span>
+                                    )}
+                                    <button
+                                        className="expand-btn"
+                                        onClick={() => setShowAllVisuals(!showAllVisuals)}
+                                    >
+                                        {showAllVisuals ? 'Show less' : 'Show all'}
+                                    </button>
+                                </div>
+                                <div className="visual-insights-grid">
+                                    {contentFrames
+                                        .slice(0, showAllVisuals ? 25 : 6)
+                                        .map((insight, i) => (
+                                            <div
+                                                key={i}
+                                                className={`visual-insight-card ${insight.content_type}`}
+                                                onClick={() => seekTo(insight.timestamp)}
+                                                title={insight.description}
+                                            >
+                                                <img
+                                                    src={`/data/meetings/${id}/${insight.frame_path}`}
+                                                    alt={insight.description}
+                                                    onError={(e) => e.target.style.display = 'none'}
+                                                />
+                                                <div className="visual-insight-info">
+                                                    <span className="visual-time">{insight.timestamp_formatted}</span>
+                                                    <span className={`visual-type ${insight.content_type}`}>{insight.content_type}</span>
+                                                </div>
+                                                {insight.chart_analysis && (
+                                                    <span className="chart-badge">📊</span>
+                                                )}
+                                                {insight.extracted_text && Array.isArray(insight.extracted_text) && insight.extracted_text.length > 0 && (
+                                                    <div className="extracted-text-hint">
+                                                        {insight.extracted_text.slice(0, 2).join(', ')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        ) : null;
+                    })()}
                 </section>
             </main>
 
@@ -566,6 +844,75 @@ function ResultsPage() {
                     </div>
                 </div>
             )}
+
+            {/* Chat Panel */}
+            <div className={`chat-panel ${showChat ? 'open' : ''}`}>
+                <div className="chat-header" onClick={() => setShowChat(!showChat)}>
+                    <span>💬 Ask about this meeting</span>
+                    <button className="chat-toggle">{showChat ? '▼' : '▲'}</button>
+                </div>
+                {showChat && (
+                    <div className="chat-body">
+                        <div className="chat-messages">
+                            {chatMessages.length === 0 && (
+                                <div className="chat-empty">
+                                    Ask any question about this meeting. Examples:
+                                    <ul>
+                                        <li>"What were the main decisions?"</li>
+                                        <li>"Who mentioned the budget?"</li>
+                                        <li>"What was shown on the slides?"</li>
+                                    </ul>
+                                </div>
+                            )}
+                            {chatMessages.map((msg, i) => (
+                                <div key={i} className={`chat-message ${msg.role}`}>
+                                    <div className="message-content">{msg.content}</div>
+                                    {msg.sources && msg.sources.length > 0 && (
+                                        <div className="message-sources">
+                                            <span className="sources-label">Sources:</span>
+                                            {msg.sources.map((src, j) => (
+                                                <span key={j} className="source-tag"
+                                                    onClick={() => src.timestamp && seekTo(src.timestamp)}>
+                                                    {src.type === 'transcript' && src.timestamp !== undefined
+                                                        ? `📝 ${formatTimestamp(src.timestamp)}`
+                                                        : src.type === 'visual' && src.timestamp !== undefined
+                                                            ? `🖼️ ${formatTimestamp(src.timestamp)}`
+                                                            : `📄 ${src.section || src.type}`}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            {chatLoading && (
+                                <div className="chat-message assistant loading">
+                                    <div className="typing-indicator">
+                                        <span></span><span></span><span></span>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={chatEndRef} />
+                        </div>
+                        <form className="chat-input-form" onSubmit={sendMessage}>
+                            <input
+                                type="text"
+                                value={chatInput}
+                                onChange={e => setChatInput(e.target.value)}
+                                placeholder="Ask a question..."
+                                disabled={chatLoading}
+                            />
+                            <button type="submit" disabled={chatLoading || !chatInput.trim()}>
+                                Send
+                            </button>
+                            {chatMessages.length > 0 && (
+                                <button type="button" className="clear-btn" onClick={clearChat}>
+                                    Clear
+                                </button>
+                            )}
+                        </form>
+                    </div>
+                )}
+            </div>
 
             {/* Toast Notification */}
             {showToast && (
