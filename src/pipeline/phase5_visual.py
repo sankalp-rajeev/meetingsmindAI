@@ -568,7 +568,7 @@ class TranscriptTriggerMatcher:
 class VLMAnalyzer:
     """Analyze frames using Gemini Vision through Vertex AI."""
     
-    def __init__(self, model: str = "gemini-1.5-flash-002", timeout: int = 120):
+    def __init__(self, model: str = "gemini-2.0-flash", timeout: int = 120):
         self.model = model
         self.timeout = timeout
         # Import here to avoid circular imports

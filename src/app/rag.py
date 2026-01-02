@@ -28,7 +28,7 @@ from langchain_core.runnables import RunnablePassthrough
 GCP_PROJECT = os.getenv("GCP_PROJECT", "meetingmind-ai-483117")
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 EMBEDDING_MODEL = "text-embedding-004"
-LLM_MODEL = "gemini-1.5-flash-002"
+LLM_MODEL = "gemini-2.0-flash"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 TOP_K = 5

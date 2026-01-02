@@ -24,7 +24,7 @@ GCP_PROJECT = os.getenv("GCP_PROJECT", "meetingmind-ai-483117")
 GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 
 # Model names
-GEMINI_FLASH = "gemini-1.5-flash-002"
+GEMINI_FLASH = "gemini-2.0-flash"
 EMBEDDING_MODEL = "text-embedding-004"
 
 # Initialize Vertex AI
