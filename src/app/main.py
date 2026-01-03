@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -17,12 +17,21 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import Dict, Optional
 
-app = FastAPI(title="MeetingsAI API", version="0.1.0")
+app = FastAPI(title="MeetingsAI API", version="1.0.0")
 
-# CORS for frontend
+# CORS - Allow frontend origins (update for Cloud Run)
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    os.getenv("FRONTEND_URL", ""),  # Cloud Run frontend URL
+]
+# Filter out empty strings
+ALLOWED_ORIGINS = [o for o in ALLOWED_ORIGINS if o]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://.*\.run\.app",  # Allow all Cloud Run URLs
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -78,7 +87,12 @@ def create_tables():
 
 @app.get("/health")
 def health():
-    return {"ok": True}
+    """Health check endpoint for Cloud Run."""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "service": "meetingmind-backend"
+    }
 
 
 @app.get("/db-check")
@@ -89,7 +103,8 @@ def db_check():
 
 
 @app.post("/api/meetings")
-def upload_meeting(file: UploadFile = File(...)):
+def upload_meeting(file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    from fastapi import BackgroundTasks as BT
     meeting_id = str(uuid4())
 
     root = meeting_root(settings.DATA_ROOT, meeting_id)
@@ -117,10 +132,39 @@ def upload_meeting(file: UploadFile = File(...)):
                 "status": "PROCESSING",
                 "phase": "PHASE1",
                 "progress": 0.01,
-                "message": "Uploaded. Starting Phase 1 and Phase 2 soon.",
+                "message": "Uploaded. Starting processing...",
                 "artifact_root": str(root),
             },
         )
+    
+    # Check if running on Cloud Run
+    if os.getenv("CLOUD_RUN", "").lower() == "true":
+        # On Cloud Run - run processing synchronously in background thread
+        import threading
+        print(f"CLOUD_RUN MODE: Starting inline processing for meeting {meeting_id}")
+        
+        def run_processing():
+            try:
+                from src.worker.tasks import process_meeting
+                process_meeting(meeting_id)
+            except Exception as e:
+                print(f"Processing error for {meeting_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                # Update status to failed
+                with engine.begin() as conn:
+                    conn.execute(
+                        text("UPDATE meetings SET status = 'FAILED', error_message = :error WHERE meeting_id = :mid"),
+                        {"error": str(e), "mid": meeting_id}
+                    )
+        
+        # Start processing in background thread (doesn't block response)
+        thread = threading.Thread(target=run_processing, daemon=True)
+        thread.start()
+        
+        return {"meeting_id": str(meeting_id)}
+    
+    # Local mode - use Redis queue
     redis = Redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
     q = Queue("meetings", connection=redis)
     q.enqueue("src.worker.tasks.process_meeting", meeting_id, job_timeout=3600)

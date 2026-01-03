@@ -3,7 +3,7 @@ Meeting RAG Service - LangChain LCEL Implementation
 
 Provides Q&A functionality over meeting content using:
 - ChromaDB for vector storage
-- Ollama for embeddings and LLM
+- Vertex AI Gemini for embeddings and LLM
 - Simple message history for conversation
 """
 
@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional
 import hashlib
 
 # LangChain imports - using stable packages
-from langchain_ollama import OllamaEmbeddings, ChatOllama
+from langchain_google_vertexai import VertexAIEmbeddings, ChatVertexAI
 from langchain_chroma import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -25,10 +25,10 @@ from langchain_core.runnables import RunnablePassthrough
 
 
 # Configuration
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "localhost:11434")
-OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}"
-EMBEDDING_MODEL = "nomic-embed-text"
-LLM_MODEL = "gemma3:latest"  # Use gemma3 for chat responses
+GCP_PROJECT = os.getenv("GCP_PROJECT", "meetingmind-ai-483117")
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
+EMBEDDING_MODEL = "text-embedding-004"
+LLM_MODEL = "gemini-2.0-flash"
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 TOP_K = 5
@@ -42,16 +42,18 @@ class MeetingRAG:
         self.meeting_root = Path(data_root) / meeting_id
         self.vectorstore_path = self.meeting_root / "vectorstore"
         
-        # Initialize embeddings
-        self.embeddings = OllamaEmbeddings(
-            model=EMBEDDING_MODEL,
-            base_url=OLLAMA_BASE_URL
+        # Initialize embeddings (Vertex AI)
+        self.embeddings = VertexAIEmbeddings(
+            model_name=EMBEDDING_MODEL,
+            project=GCP_PROJECT,
+            location=GCP_LOCATION,
         )
         
-        # Initialize LLM
-        self.llm = ChatOllama(
-            model=LLM_MODEL,
-            base_url=OLLAMA_BASE_URL,
+        # Initialize LLM (Vertex AI Gemini)
+        self.llm = ChatVertexAI(
+            model_name=LLM_MODEL,
+            project=GCP_PROJECT,
+            location=GCP_LOCATION,
             temperature=0.3,
         )
         

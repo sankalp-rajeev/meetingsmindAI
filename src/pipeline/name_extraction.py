@@ -16,7 +16,6 @@ from typing import Dict, List, Optional
 
 def extract_speaker_names(
     transcript_segments: List[dict],
-    model: str = "qwen2.5:14b",
     max_segments_per_speaker: int = 5,
     timeout: int = 60
 ) -> Dict[str, str]:
@@ -25,7 +24,6 @@ def extract_speaker_names(
     
     Args:
         transcript_segments: List of transcript segments with speaker, start, text
-        model: Ollama model to use
         max_segments_per_speaker: How many segments to analyze per speaker
         timeout: Request timeout
     
@@ -78,22 +76,9 @@ Example: {{"SPEAKER_00": "Eric Johnson", "SPEAKER_01": null, "SPEAKER_02": "Kris
 JSON only, no explanation:"""
 
     try:
-        import os
-        ollama_host = os.getenv("OLLAMA_HOST", "localhost:11434")
-        response = requests.post(
-            f"http://{ollama_host}/api/chat",
-            json={
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "stream": False,
-                "options": {"temperature": 0.1}
-            },
-            timeout=timeout
-        )
-        response.raise_for_status()
+        from src.app.gemini_client import gemini_generate
         
-        result = response.json()
-        content = result.get("message", {}).get("content", "")
+        content = gemini_generate(prompt, temperature=0.1)
         
         # Parse JSON from response
         extracted = _parse_json_response(content)

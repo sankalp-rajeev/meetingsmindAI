@@ -35,26 +35,29 @@ def _extract_json(text: str) -> Dict[str, Any]:
     raise ValueError("Could not parse JSON from model output")
 
 
-def _ollama_chat(model: str, messages: List[Dict[str, str]], temperature: float = 0.1, timeout: int = 600) -> str:
+def _gemini_chat(messages: List[Dict[str, str]], temperature: float = 0.1, timeout: int = 600) -> str:
     """
-    Calls local Ollama chat endpoint.
+    Calls Vertex AI Gemini for chat completion.
     """
     import os
-    ollama_host = os.getenv("OLLAMA_HOST", "localhost:11434")
-    url = f"http://{ollama_host}/api/chat"
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "options": {"temperature": temperature, "num_ctx": 32768},
-    }
-    r = requests.post(url, json=payload, timeout=timeout)
-    r.raise_for_status()
-    data = r.json()
-    return data["message"]["content"]
+    from src.app.gemini_client import GeminiClient
+    
+    client = GeminiClient(temperature=temperature)
+    
+    # Combine system + user messages into a single prompt
+    system_msg = ""
+    user_msg = ""
+    for msg in messages:
+        if msg["role"] == "system":
+            system_msg = msg["content"]
+        elif msg["role"] == "user":
+            user_msg = msg["content"]
+    
+    return client.generate_text(user_msg, system_instruction=system_msg)
 
 
-def run_phase4(meeting_root: Path, model: str = "qwen2.5:14b") -> Path:
+
+def run_phase4(meeting_root: Path) -> Path:
     """
     Generates comprehensive meeting summary by fusing transcript with visual insights.
     Creates a summary that allows someone who missed the meeting to understand:
@@ -255,7 +258,7 @@ If something wasn't discussed, use an empty array [] rather than making things u
         {"role": "user", "content": user_prompt},
     ]
 
-    raw = _ollama_chat(model, messages, temperature=0.2, timeout=600)
+    raw = _gemini_chat(messages, temperature=0.2, timeout=600)
 
     try:
         out = _extract_json(raw)
@@ -265,7 +268,7 @@ If something wasn't discussed, use an empty array [] rather than making things u
             {"role": "system", "content": "Fix this into valid JSON. Output ONLY the corrected JSON, nothing else."},
             {"role": "user", "content": raw},
         ]
-        raw2 = _ollama_chat(model, repair_messages, temperature=0.0, timeout=300)
+        raw2 = _gemini_chat(repair_messages, temperature=0.0, timeout=300)
         out = _extract_json(raw2)
 
     # Ensure the output structure is correct
