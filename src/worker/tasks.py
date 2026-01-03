@@ -127,7 +127,7 @@ def process_meeting(meeting_id: str):
         # Run Phase 4 (Summarization)
         update_db(meeting_id, phase="PHASE4", progress=0.9, message="Running Phase 4 (Summarization)...")
         meeting_root = Path(settings.DATA_ROOT) / meeting_id
-        out_path = run_phase4(meeting_root, model="qwen2.5:14b")
+        out_path = run_phase4(meeting_root)
         update_db(meeting_id, message=f"Phase 4 complete: {out_path.name}")
 
         update_db(

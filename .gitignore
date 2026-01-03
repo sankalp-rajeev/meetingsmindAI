@@ -58,6 +58,7 @@ env/
 
 # Meeting data (generated/processed)
 src/data/meetings/
+src/data/meetings.db
 data/output/
 
 # Temporary files
@@ -95,3 +96,6 @@ htmlcov/
 src_old/
 audio/
 video/
+
+# Project artifacts (local only)
+PROJECT_SUMMARY.md

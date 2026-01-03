@@ -1,0 +1,81 @@
+# Optimized Cloud Run Backend Dockerfile for GPU
+# Uses Python base with minimal CUDA for faster startup
+
+FROM python:3.11-slim
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CUDA libraries only (not full runtime)
+# This is much lighter and faster to initialize
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg2 \
+    && curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub | apt-key add - \
+    && echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64 /" > /etc/apt/sources.list.d/cuda.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        cuda-cudart-12-1 \
+        cuda-compat-12-1 \
+        libcublas-12-1 \
+        libcurand-12-1 \
+        libcudnn8 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set CUDA environment variables
+ENV CUDA_HOME=/usr/local/cuda-12.1
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# Upgrade pip
+RUN python -m pip install --no-cache-dir --upgrade pip
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+# Use pre-built wheels where possible
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+
+# Copy ML model files
+COPY yolov11m-face.pt yolov8n-face.pt ./
+
+# Create data directory
+RUN mkdir -p src/data/meetings
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+ENV GCP_PROJECT=meetingmind-ai-483117
+ENV GCP_LOCATION=us-central1
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# Expose Cloud Run port
+EXPOSE 8080
+
+# Pre-import heavy libraries to warm up
+RUN python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}')" || echo "PyTorch import failed, will retry at runtime"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run with uvicorn
+CMD ["python", "-m", "uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
